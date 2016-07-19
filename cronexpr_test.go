@@ -278,7 +278,7 @@ func TestNextN_every5min(t *testing.T) {
 	for i, next := range result {
 		nextStr := next.Format("Mon, 2 Jan 2006 15:04:05")
 		if nextStr != expected[i] {
-		t.Errorf(`MustParse("*/5 * * * *").NextN("2013-09-02 08:44:30", 5):\n"`)
+			t.Errorf(`MustParse("*/5 * * * *").NextN("2013-09-02 08:44:30", 5):\n"`)
 			t.Errorf(`  result[%d]: expected "%s" but got "%s"`, i, expected[i], nextStr)
 		}
 	}
@@ -287,6 +287,7 @@ func TestNextN_every5min(t *testing.T) {
 /******************************************************************************/
 
 var benchmarkExpressions = []string{
+	"@minutely",
 	"* * * * *",
 	"@hourly",
 	"@weekly",

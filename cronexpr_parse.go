@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -445,7 +446,13 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			directive.kind = span
 			directive.first = desc.min
 			directive.last = desc.max
-			directive.step = atoi(snormal[pairs[2]:pairs[3]])
+
+			if step, err := strconv.Atoi(snormal[pairs[2]:pairs[3]]); err != nil {
+				return nil, err
+			} else {
+				directive.step = step
+			}
+
 			directives = append(directives, &directive)
 			continue
 		}

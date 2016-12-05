@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 /******************************************************************************/
@@ -107,15 +108,17 @@ func atoi(s string) int {
 }
 
 type fieldDescriptor struct {
-	name         string
-	min, max     int
-	defaultList  []int
-	valuePattern string
-	atoi         func(string) int
+	name           string
+	min, max       int
+	defaultList    []int
+	valuePattern   string
+	atoi           func(string) int
+	layoutInitOnce sync.Once
+	layoutMap      map[string]*regexp.Regexp
 }
 
 var (
-	secondDescriptor = fieldDescriptor{
+	secondDescriptor = &fieldDescriptor{
 		name:         "second",
 		min:          0,
 		max:          59,
@@ -123,7 +126,7 @@ var (
 		valuePattern: `0?[0-9]|[1-5][0-9]`,
 		atoi:         atoi,
 	}
-	minuteDescriptor = fieldDescriptor{
+	minuteDescriptor = &fieldDescriptor{
 		name:         "minute",
 		min:          0,
 		max:          59,
@@ -131,7 +134,7 @@ var (
 		valuePattern: `0?[0-9]|[1-5][0-9]`,
 		atoi:         atoi,
 	}
-	hourDescriptor = fieldDescriptor{
+	hourDescriptor = &fieldDescriptor{
 		name:         "hour",
 		min:          0,
 		max:          23,
@@ -139,7 +142,7 @@ var (
 		valuePattern: `0?[0-9]|1[0-9]|2[0-3]`,
 		atoi:         atoi,
 	}
-	domDescriptor = fieldDescriptor{
+	domDescriptor = &fieldDescriptor{
 		name:         "day-of-month",
 		min:          1,
 		max:          31,
@@ -147,7 +150,7 @@ var (
 		valuePattern: `0?[1-9]|[12][0-9]|3[01]`,
 		atoi:         atoi,
 	}
-	monthDescriptor = fieldDescriptor{
+	monthDescriptor = &fieldDescriptor{
 		name:         "month",
 		min:          1,
 		max:          12,
@@ -157,7 +160,7 @@ var (
 			return monthTokens[s]
 		},
 	}
-	dowDescriptor = fieldDescriptor{
+	dowDescriptor = &fieldDescriptor{
 		name:         "day-of-week",
 		min:          0,
 		max:          6,
@@ -167,7 +170,7 @@ var (
 			return dowTokens[s]
 		},
 	}
-	yearDescriptor = fieldDescriptor{
+	yearDescriptor = &fieldDescriptor{
 		name:         "year",
 		min:          1970,
 		max:          2099,
@@ -176,6 +179,17 @@ var (
 		atoi:         atoi,
 	}
 )
+
+func (f *fieldDescriptor) makeLayoutRegexp(layout string) *regexp.Regexp {
+	f.layoutInitOnce.Do(func() {
+		f.layoutMap = make(map[string]*regexp.Regexp)
+		for _, l := range allLayouts {
+			realLayoutString := strings.Replace(l, `%value%`, f.valuePattern, -1)
+			f.layoutMap[l] = regexp.MustCompile(realLayoutString)
+		}
+	})
+	return f.layoutMap[layout]
+}
 
 /******************************************************************************/
 
@@ -193,8 +207,21 @@ var (
 	layoutDowOfSpecificWeek   = `^(%value%)#([1-5])$`
 	fieldFinder               = regexp.MustCompile(`\S+`)
 	entryFinder               = regexp.MustCompile(`[^,]+`)
-	layoutRegexp              = make(map[string]*regexp.Regexp)
 )
+
+var allLayouts = []string{
+	layoutWildcard,
+	layoutValue,
+	layoutRange,
+	layoutWildcardAndInterval,
+	layoutValueAndInterval,
+	layoutRangeAndInterval,
+	layoutLastDom,
+	layoutWorkdom,
+	layoutLastWorkdom,
+	layoutDowOfLastWeek,
+	layoutDowOfSpecificWeek,
+}
 
 /******************************************************************************/
 
@@ -264,7 +291,7 @@ type cronDirective struct {
 	send  int
 }
 
-func genericFieldHandler(s string, desc fieldDescriptor) ([]int, error) {
+func genericFieldHandler(s string, desc *fieldDescriptor) ([]int, error) {
 	directives, err := genericFieldParse(s, desc)
 	if err != nil {
 		return nil, err
@@ -302,12 +329,12 @@ func (expr *Expression) dowFieldHandler(s string) error {
 			sdirective := s[directive.sbeg:directive.send]
 			snormal := strings.ToLower(sdirective)
 			// `5L`
-			pairs := makeLayoutRegexp(layoutDowOfLastWeek, dowDescriptor.valuePattern).FindStringSubmatchIndex(snormal)
+			pairs := dowDescriptor.makeLayoutRegexp(layoutDowOfLastWeek).FindStringSubmatchIndex(snormal)
 			if len(pairs) > 0 {
 				populateOne(expr.lastWeekDaysOfWeek, dowDescriptor.atoi(snormal[pairs[2]:pairs[3]]))
 			} else {
 				// `5#3`
-				pairs := makeLayoutRegexp(layoutDowOfSpecificWeek, dowDescriptor.valuePattern).FindStringSubmatchIndex(snormal)
+				pairs := dowDescriptor.makeLayoutRegexp(layoutDowOfSpecificWeek).FindStringSubmatchIndex(snormal)
 				if len(pairs) > 0 {
 					populateOne(expr.specificWeekDaysOfWeek, (dowDescriptor.atoi(snormal[pairs[4]:pairs[5]])-1)*7+(dowDescriptor.atoi(snormal[pairs[2]:pairs[3]])%7))
 				} else {
@@ -344,15 +371,15 @@ func (expr *Expression) domFieldHandler(s string) error {
 			sdirective := s[directive.sbeg:directive.send]
 			snormal := strings.ToLower(sdirective)
 			// `L`
-			if makeLayoutRegexp(layoutLastDom, domDescriptor.valuePattern).MatchString(snormal) {
+			if domDescriptor.makeLayoutRegexp(layoutLastDom).MatchString(snormal) {
 				expr.lastDayOfMonth = true
 			} else {
 				// `LW`
-				if makeLayoutRegexp(layoutLastWorkdom, domDescriptor.valuePattern).MatchString(snormal) {
+				if domDescriptor.makeLayoutRegexp(layoutLastWorkdom).MatchString(snormal) {
 					expr.lastWorkdayOfMonth = true
 				} else {
 					// `15W`
-					pairs := makeLayoutRegexp(layoutWorkdom, domDescriptor.valuePattern).FindStringSubmatchIndex(snormal)
+					pairs := domDescriptor.makeLayoutRegexp(layoutWorkdom).FindStringSubmatchIndex(snormal)
 					if len(pairs) > 0 {
 						populateOne(expr.workdaysOfMonth, domDescriptor.atoi(snormal[pairs[2]:pairs[3]]))
 					} else {
@@ -397,7 +424,7 @@ func toList(set map[int]bool) []int {
 
 /******************************************************************************/
 
-func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error) {
+func genericFieldParse(s string, desc *fieldDescriptor) ([]*cronDirective, error) {
 	// At least one entry must be present
 	indices := entryFinder.FindAllStringIndex(s, -1)
 	if len(indices) == 0 {
@@ -414,7 +441,7 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 		snormal := strings.ToLower(s[indices[i][0]:indices[i][1]])
 
 		// `*`
-		if makeLayoutRegexp(layoutWildcard, desc.valuePattern).MatchString(snormal) {
+		if desc.makeLayoutRegexp(layoutWildcard).MatchString(snormal) {
 			directive.kind = all
 			directive.first = desc.min
 			directive.last = desc.max
@@ -423,14 +450,14 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			continue
 		}
 		// `5`
-		if makeLayoutRegexp(layoutValue, desc.valuePattern).MatchString(snormal) {
+		if desc.makeLayoutRegexp(layoutValue).MatchString(snormal) {
 			directive.kind = one
 			directive.first = desc.atoi(snormal)
 			directives = append(directives, &directive)
 			continue
 		}
 		// `5-20`
-		pairs := makeLayoutRegexp(layoutRange, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		pairs := desc.makeLayoutRegexp(layoutRange).FindStringSubmatchIndex(snormal)
 		if len(pairs) > 0 {
 			directive.kind = span
 			directive.first = desc.atoi(snormal[pairs[2]:pairs[3]])
@@ -440,7 +467,7 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			continue
 		}
 		// `*/2`
-		pairs = makeLayoutRegexp(layoutWildcardAndInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		pairs = desc.makeLayoutRegexp(layoutWildcardAndInterval).FindStringSubmatchIndex(snormal)
 		if len(pairs) > 0 {
 			directive.kind = span
 			directive.first = desc.min
@@ -453,7 +480,7 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			continue
 		}
 		// `5/2`
-		pairs = makeLayoutRegexp(layoutValueAndInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		pairs = desc.makeLayoutRegexp(layoutValueAndInterval).FindStringSubmatchIndex(snormal)
 		if len(pairs) > 0 {
 			directive.kind = span
 			directive.first = desc.atoi(snormal[pairs[2]:pairs[3]])
@@ -466,7 +493,7 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 			continue
 		}
 		// `5-20/2`
-		pairs = makeLayoutRegexp(layoutRangeAndInterval, desc.valuePattern).FindStringSubmatchIndex(snormal)
+		pairs = desc.makeLayoutRegexp(layoutRangeAndInterval).FindStringSubmatchIndex(snormal)
 		if len(pairs) > 0 {
 			directive.kind = span
 			directive.first = desc.atoi(snormal[pairs[2]:pairs[3]])
@@ -483,16 +510,4 @@ func genericFieldParse(s string, desc fieldDescriptor) ([]*cronDirective, error)
 		directives = append(directives, &directive)
 	}
 	return directives, nil
-}
-
-/******************************************************************************/
-
-func makeLayoutRegexp(layout, value string) *regexp.Regexp {
-	layout = strings.Replace(layout, `%value%`, value, -1)
-	re := layoutRegexp[layout]
-	if re == nil {
-		re = regexp.MustCompile(layout)
-		layoutRegexp[layout] = re
-	}
-	return re
 }

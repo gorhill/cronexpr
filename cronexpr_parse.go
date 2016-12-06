@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 )
 
 /******************************************************************************/
@@ -193,6 +194,7 @@ var (
 	layoutDowOfSpecificWeek   = `^(%value%)#([1-5])$`
 	fieldFinder               = regexp.MustCompile(`\S+`)
 	entryFinder               = regexp.MustCompile(`[^,]+`)
+	layoutRegexpLock          = sync.Mutex{}
 	layoutRegexp              = make(map[string]*regexp.Regexp)
 )
 
@@ -491,8 +493,14 @@ func makeLayoutRegexp(layout, value string) *regexp.Regexp {
 	layout = strings.Replace(layout, `%value%`, value, -1)
 	re := layoutRegexp[layout]
 	if re == nil {
-		re = regexp.MustCompile(layout)
-		layoutRegexp[layout] = re
+		// double check locking to fix issue: https://github.com/gorhill/cronexpr/issues/19
+		layoutRegexpLock.Lock()
+		defer layoutRegexpLock.Unlock()
+		re = layoutRegexp[layout]
+		if re == nil {
+			re = regexp.MustCompile(layout)
+			layoutRegexp[layout] = re
+		}
 	}
 	return re
 }

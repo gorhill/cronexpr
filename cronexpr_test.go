@@ -334,6 +334,30 @@ func TestDST(t *testing.T) {
 			},
 		},
 		{
+			fmt.Sprintf("%s time after daily leap skip", locs[0]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2016, 3, 12, 14, 6, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2016, 3, 13, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 14, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 15, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 16, 14, 5, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap unskip", locs[0]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireLate},
+			time.Date(2016, 3, 12, 14, 6, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2016, 3, 13, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 14, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 15, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 16, 14, 5, 0, 0, locs[0]),
+			},
+		},
+		{
 			fmt.Sprintf("%s hourly leap skip", locs[0]),
 			"0 0 * * * * *",
 			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
@@ -478,6 +502,30 @@ func TestDST(t *testing.T) {
 			},
 		},
 		{
+			fmt.Sprintf("%s time after daily leap skip", locs[1]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 15, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 4, 14, 5, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap unskip", locs[1]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 15, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 4, 14, 5, 0, 0, locs[1]),
+			},
+		},
+		{
 			fmt.Sprintf("%s hourly leap skip", locs[1]),
 			"0 0 * * * * *",
 			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
@@ -571,6 +619,30 @@ func TestDST(t *testing.T) {
 				time.Date(2014, 10, 6, 2, 0, 0, 0, locs[2]),
 				time.Date(2014, 10, 7, 2, 0, 0, 0, locs[2]),
 				time.Date(2014, 10, 8, 2, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap skip", locs[2]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 15, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 7, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 8, 14, 5, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap unskip", locs[2]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 15, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 7, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 8, 14, 5, 0, 0, locs[2]),
 			},
 		},
 		{

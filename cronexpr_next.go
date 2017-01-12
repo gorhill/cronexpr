@@ -247,11 +247,23 @@ func (expr *Expression) nextTime(prev, next time.Time) time.Time {
 
 	// a dst leap occurred
 	if offsetDiff > 0 {
-		if dstFlags&DSTLeapUnskip != 0 {
-			return findTimeOfDSTChange(prev, t).Add(1 * time.Second)
+		dstChangeTime := findTimeOfDSTChange(prev, t)
+
+		// since a dst leap occured, t is offsetDiff seconds ahead
+		t = t.Add(-1 * offsetDiff)
+
+		// check if t is within the skipped interval (offsetDiff)
+		if noTZDiff(dstChangeTime, t) < offsetDiff {
+			if dstFlags&DSTLeapUnskip != 0 {
+				// return the earliest time right after the leap
+				return dstChangeTime.Add(1 * time.Second)
+			}
+
+			// return the next scheduled time right after the leap
+			return expr.roundTime(dstChangeTime.Add(1 * time.Second))
 		}
 
-		return expr.roundTime(t)
+		return t
 	}
 
 	// a dst fall occurred
@@ -401,13 +413,13 @@ func workdayOfMonth(targetDom, lastDom time.Time) int {
 	return dom
 }
 
-func utcOffset(t time.Time) int {
+func utcOffset(t time.Time) time.Duration {
 	_, offset := t.Zone()
-	return offset
+	return time.Duration(offset) * time.Second
 }
 
 func noTZ(t time.Time) time.Time {
-	return t.UTC().Add(time.Duration(utcOffset(t)) * time.Second)
+	return t.UTC().Add(utcOffset(t))
 }
 
 func noTZDiff(t1, t2 time.Time) time.Duration {
@@ -454,7 +466,7 @@ func findTwinTime(t time.Time) time.Time {
 	// a fall occurs within the next 12 hours
 	if offsetDiff < 0 {
 		border := findTimeOfDSTChange(t, t.Add(12*time.Hour))
-		t0 := border.Add(time.Duration(offsetDiff) * time.Second)
+		t0 := border.Add(offsetDiff)
 
 		if t0.After(t) {
 			return t
@@ -468,9 +480,9 @@ func findTwinTime(t time.Time) time.Time {
 	// a fall occurred in the past 12 hours
 	if offsetDiff < 0 {
 		border := findTimeOfDSTChange(t.Add(-12*time.Hour), t)
-		t0 := border.Add(time.Duration(offsetDiff) * time.Second)
+		t0 := border.Add(offsetDiff)
 
-		if t0.Add(time.Duration(-2*offsetDiff) * time.Second).Before(t) {
+		if t0.Add(-2 * offsetDiff).Before(t) {
 			return t
 		}
 

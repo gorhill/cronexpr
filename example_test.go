@@ -35,3 +35,81 @@ func ExampleMustParse() {
 		// Sun, 29 Feb 2032 00:00:00 UTC
 	}
 }
+
+// Configure the parser to skip times in DST leaps and
+// repeat times in DST falls
+func ExampleParseWithOptions_dst1() {
+	loc, _ := time.LoadLocation("America/Los_Angeles")
+	t := time.Date(2014, 3, 8, 1, 0, 0, 0, loc)
+	expr, _ := cronexpr.ParseWithOptions("0 0 2 * * * *", cronexpr.Options{
+		DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate,
+	})
+
+	fmt.Println("DST leap times:")
+	nextTimes := expr.NextN(t, 4)
+	for i := range nextTimes {
+		fmt.Println(nextTimes[i].Format(time.RFC1123))
+	}
+
+	t = time.Date(2014, 10, 31, 1, 0, 0, 0, loc)
+	expr, _ = cronexpr.ParseWithOptions("0 0 1 * * * *", cronexpr.Options{
+		DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate,
+	})
+
+	fmt.Println("DST fall times:")
+	nextTimes = expr.NextN(t, 4)
+	for i := range nextTimes {
+		fmt.Println(nextTimes[i].Format(time.RFC1123))
+	}
+
+	// Output:
+	// DST leap times:
+	// Sat, 08 Mar 2014 02:00:00 PST
+	// Mon, 10 Mar 2014 02:00:00 PDT
+	// Tue, 11 Mar 2014 02:00:00 PDT
+	// Wed, 12 Mar 2014 02:00:00 PDT
+	// DST fall times:
+	// Sat, 01 Nov 2014 01:00:00 PDT
+	// Sun, 02 Nov 2014 01:00:00 PDT
+	// Sun, 02 Nov 2014 01:00:00 PST
+	// Mon, 03 Nov 2014 01:00:00 PST
+}
+
+// Configure the parser to unskip times in DST leaps and
+// fire late in DST falls
+func ExampleParseWithOptions_dst2() {
+	loc, _ := time.LoadLocation("America/Los_Angeles")
+	t := time.Date(2014, 3, 8, 1, 0, 0, 0, loc)
+	expr, _ := cronexpr.ParseWithOptions("0 0 2 * * * *", cronexpr.Options{
+		DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireLate,
+	})
+
+	fmt.Println("DST leap times:")
+	nextTimes := expr.NextN(t, 4)
+	for i := range nextTimes {
+		fmt.Println(nextTimes[i].Format(time.RFC1123))
+	}
+
+	t = time.Date(2014, 10, 31, 1, 0, 0, 0, loc)
+	expr, _ = cronexpr.ParseWithOptions("0 0 1 * * * *", cronexpr.Options{
+		DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireLate,
+	})
+
+	fmt.Println("DST fall times:")
+	nextTimes = expr.NextN(t, 4)
+	for i := range nextTimes {
+		fmt.Println(nextTimes[i].Format(time.RFC1123))
+	}
+
+	// Output:
+	// DST leap times:
+	// Sat, 08 Mar 2014 02:00:00 PST
+	// Sun, 09 Mar 2014 03:00:00 PDT
+	// Mon, 10 Mar 2014 02:00:00 PDT
+	// Tue, 11 Mar 2014 02:00:00 PDT
+	// DST fall times:
+	// Sat, 01 Nov 2014 01:00:00 PDT
+	// Sun, 02 Nov 2014 01:00:00 PST
+	// Mon, 03 Nov 2014 01:00:00 PST
+	// Tue, 04 Nov 2014 01:00:00 PST
+}

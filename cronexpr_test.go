@@ -15,6 +15,7 @@ package cronexpr_test
 /******************************************************************************/
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -278,14 +279,575 @@ func TestNextN_every5min(t *testing.T) {
 	for i, next := range result {
 		nextStr := next.Format("Mon, 2 Jan 2006 15:04:05")
 		if nextStr != expected[i] {
-		t.Errorf(`MustParse("*/5 * * * *").NextN("2013-09-02 08:44:30", 5):\n"`)
+			t.Errorf(`MustParse("*/5 * * * *").NextN("2013-09-02 08:44:30", 5):\n"`)
 			t.Errorf(`  result[%d]: expected "%s" but got "%s"`, i, expected[i], nextStr)
 		}
 	}
 }
 
+func TestDST(t *testing.T) {
+	var locs [3]*time.Location
+
+	// 1 hour DST, negative UTC offset
+	// time.Date(2014, 3, 9, 2, 0, 0, 0, locs[0]) Leap PST -> PDT
+	// time.Date(2014, 11, 2, 1, 59, 59, 0, locs[0]) Fall PDT -> PST
+	locs[0], _ = time.LoadLocation("America/Los_Angeles")
+
+	// biggest tz leap ever (3 hours), occurred from YAKT to MAGST
+	// at time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+	locs[1], _ = time.LoadLocation("Asia/Ust-Nera")
+
+	// 30 mins DST, positive UTC offset
+	// time.Date(2014, 10, 5, 2, 30, 0, 0, locs[2]) Leap LHST -> LHDT
+	// time.Date(2015, 4, 5, 1, 30, 0, 0, locs[2]) Fall LHDT -> LHST
+	locs[2], _ = time.LoadLocation("Australia/LHI")
+
+	cases := []struct {
+		name     string
+		expr     string
+		opts     cronexpr.Options
+		from     time.Time
+		expected []time.Time
+	}{
+		{
+			fmt.Sprintf("%s daily leap skip", locs[0]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 3, 9, 1, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 3, 10, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 11, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 12, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 13, 2, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily leap unskip", locs[0]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 3, 9, 1, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 3, 9, 3, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 10, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 11, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 12, 2, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap skip", locs[0]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2016, 3, 12, 14, 6, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2016, 3, 13, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 14, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 15, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 16, 14, 5, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap unskip", locs[0]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireLate},
+			time.Date(2016, 3, 12, 14, 6, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2016, 3, 13, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 14, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 15, 14, 5, 0, 0, locs[0]),
+				time.Date(2016, 3, 16, 14, 5, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly leap skip", locs[0]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 3, 9, 1, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 3, 9, 3, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 4, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 5, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 6, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly leap unskip", locs[0]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 3, 9, 1, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 3, 9, 3, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 4, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 5, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 6, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily quarter-hourly leap skip", locs[0]),
+			"0 */15 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 3, 9, 1, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 3, 10, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 10, 2, 15, 0, 0, locs[0]),
+				time.Date(2014, 3, 10, 2, 30, 0, 0, locs[0]),
+				time.Date(2014, 3, 10, 2, 45, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily quarter-hourly leap unskip", locs[0]),
+			"0 */15 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 3, 9, 1, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 3, 9, 3, 0, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 3, 15, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 3, 30, 0, 0, locs[0]),
+				time.Date(2014, 3, 9, 3, 45, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily fall fire early", locs[0]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 11, 1, 2, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 11, 2, 1, 0, 0, 0, locs[0]).Add(1 * time.Hour),
+				time.Date(2014, 11, 3, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 4, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 5, 2, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily fall fire late", locs[0]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2014, 11, 1, 2, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 11, 2, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 3, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 4, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 5, 2, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily fall fire both", locs[0]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate},
+			time.Date(2014, 11, 1, 2, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 11, 2, 1, 0, 0, 0, locs[0]).Add(1 * time.Hour),
+				time.Date(2014, 11, 2, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 3, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 4, 2, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly fall fire early", locs[0]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 11, 2, 0, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 11, 2, 1, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 3, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 4, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly fall fire late", locs[0]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2014, 11, 2, 0, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 11, 2, 1, 0, 0, 0, locs[0]).Add(1 * time.Hour),
+				time.Date(2014, 11, 2, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 3, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 4, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly fall fire twice", locs[0]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate},
+			time.Date(2014, 11, 2, 0, 0, 0, 0, locs[0]),
+			[]time.Time{
+				time.Date(2014, 11, 2, 1, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 1, 0, 0, 0, locs[0]).Add(1 * time.Hour),
+				time.Date(2014, 11, 2, 2, 0, 0, 0, locs[0]),
+				time.Date(2014, 11, 2, 3, 0, 0, 0, locs[0]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily leap skip", locs[1]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 2, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 2, 2, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 2, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 4, 2, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 5, 2, 0, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily leap unskip", locs[1]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 2, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 2, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 2, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 4, 2, 0, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap skip", locs[1]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 15, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 4, 14, 5, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap unskip", locs[1]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 15, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 14, 5, 0, 0, locs[1]),
+				time.Date(1981, 4, 4, 14, 5, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly leap skip", locs[1]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 23, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 4, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 5, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 6, 0, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly leap unskip", locs[1]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 23, 0, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 4, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 5, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 6, 0, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s quarter-hourly leap skip", locs[1]),
+			"0 */15 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 23, 15, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 3, 31, 23, 30, 0, 0, locs[1]),
+				time.Date(1981, 3, 31, 23, 45, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 3, 15, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s quarter-hourly leap unskip", locs[1]),
+			"0 */15 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 23, 15, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 3, 31, 23, 30, 0, 0, locs[1]),
+				time.Date(1981, 3, 31, 23, 45, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 3, 15, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily third-hourly leap skip", locs[1]),
+			"0 */20 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 2, 40, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 2, 2, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 2, 20, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 2, 40, 0, 0, locs[1]),
+				time.Date(1981, 4, 3, 2, 0, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily third-hourly leap unskip", locs[1]),
+			"0 */20 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(1981, 3, 31, 2, 40, 0, 0, locs[1]),
+			[]time.Time{
+				time.Date(1981, 4, 1, 3, 0, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 3, 20, 0, 0, locs[1]),
+				time.Date(1981, 4, 1, 3, 40, 0, 0, locs[1]),
+				time.Date(1981, 4, 2, 2, 0, 0, 0, locs[1]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily leap skip", locs[2]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 2, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 6, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 7, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 8, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 9, 2, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily leap unskip", locs[2]),
+			"0 0 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 2, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 7, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 8, 2, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap skip", locs[2]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 15, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 7, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 8, 14, 5, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s time after daily leap unskip", locs[2]),
+			"0 5 14 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 15, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 7, 14, 5, 0, 0, locs[2]),
+				time.Date(2014, 10, 8, 14, 5, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly leap skip", locs[2]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 5, 1, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 3, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 4, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 5, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 6, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly leap unskip", locs[2]),
+			"0 0 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 5, 1, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 3, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 4, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 5, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s quarter-hourly leap skip", locs[2]),
+			"0 */15 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 5, 1, 15, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 1, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 1, 45, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 2, 45, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s quarter-hourly leap unskip", locs[2]),
+			"0 */15 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 5, 1, 15, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 1, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 1, 45, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 2, 45, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s third-hourly leap skip", locs[2]),
+			"0 */20 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 2, 40, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 2, 40, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 2, 20, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 2, 40, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s third-hourly leap unskip", locs[2]),
+			"0 */20 2 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTLeapUnskip | cronexpr.DSTFallFireEarly},
+			time.Date(2014, 10, 4, 2, 40, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2014, 10, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2014, 10, 5, 2, 40, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 2, 0, 0, 0, locs[2]),
+				time.Date(2014, 10, 6, 2, 20, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily fall fire early", locs[2]),
+			"0 45 1 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]).Add(45 * time.Minute),
+			[]time.Time{
+				time.Date(2015, 4, 6, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 7, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 8, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 9, 1, 45, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily fall fire late", locs[2]),
+			"0 45 1 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2015, 4, 5, 1, 45, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 6, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 7, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 8, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 9, 1, 45, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s daily fall fire twice", locs[2]),
+			"0 45 1 * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate},
+			time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]).Add(45 * time.Minute),
+				time.Date(2015, 4, 5, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 6, 1, 45, 0, 0, locs[2]),
+				time.Date(2015, 4, 7, 1, 45, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly fall fire early", locs[2]),
+			"0 30 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2015, 4, 5, 0, 30, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 0, 30, 0, 0, locs[2]).Add(1 * time.Hour),
+				time.Date(2015, 4, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 3, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 4, 30, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly fall fire late", locs[2]),
+			"0 30 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2015, 4, 5, 0, 30, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 1, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 3, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 4, 30, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s hourly fall fire twice", locs[2]),
+			"0 30 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate},
+			time.Date(2015, 4, 5, 0, 30, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 0, 30, 0, 0, locs[2]).Add(1 * time.Hour),
+				time.Date(2015, 4, 5, 1, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 3, 30, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s half-hourly fall fire early", locs[2]),
+			"0 */30 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly},
+			time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]).Add(30 * time.Minute),
+				time.Date(2015, 4, 5, 2, 0, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 3, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s half-hourly fall fire late", locs[2]),
+			"0 */30 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireLate},
+			time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 1, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 0, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 3, 0, 0, 0, locs[2]),
+			},
+		},
+		{
+			fmt.Sprintf("%s half-hourly fall fire twice", locs[2]),
+			"0 */30 * * * * *",
+			cronexpr.Options{DSTFlags: cronexpr.DSTFallFireEarly | cronexpr.DSTFallFireLate},
+			time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]),
+			[]time.Time{
+				time.Date(2015, 4, 5, 1, 0, 0, 0, locs[2]).Add(30 * time.Minute),
+				time.Date(2015, 4, 5, 1, 30, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 0, 0, 0, locs[2]),
+				time.Date(2015, 4, 5, 2, 30, 0, 0, locs[2]),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		s, err := cronexpr.ParseWithOptions(tc.expr, tc.opts)
+		if err != nil {
+			t.Fatalf("parser error: %s", err)
+		}
+
+		runs := s.NextN(tc.from, 4)
+		if len(runs) != 4 {
+			t.Errorf("Case %s: Expected 4 runs, got %d", tc.name, len(runs))
+		}
+
+		for i := 0; i < len(runs); i++ {
+			if !runs[i].Equal(tc.expected[i]) {
+				t.Errorf("Case %s: Expected %v, got %v", tc.name, tc.expected[i], runs[i])
+			}
+		}
+	}
+}
+
 // Issue: https://github.com/gorhill/cronexpr/issues/16
-func TestInterval_Interval60Issue(t *testing.T){
+func TestInterval_Interval60Issue(t *testing.T) {
 	_, err := cronexpr.Parse("*/60 * * * * *")
 	if err == nil {
 		t.Errorf("parsing with interval 60 should return err")

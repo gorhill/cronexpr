@@ -307,6 +307,44 @@ func TestInterval_Interval60Issue(t *testing.T){
 	}
 }
 
+func TestMatches(t *testing.T) {
+	var cases = []struct {
+		cronLine string
+		refTime string
+		shouldMatch bool
+	}{
+		// m h dom mon dow
+		{"5 * * * *", "2013-09-02 01:44:32", false}, // minutes
+		{"5 * * * *", "2013-09-02 01:05:32", true},
+		{"* 3 * * *", "2013-09-02 01:45:32", false}, // hours
+		{"* 3 * * *", "2013-09-02 03:45:32", true},
+		{"* * 2 * *", "2013-09-03 03:45:32", false}, // day of month
+		{"* * 2 * *", "2013-09-02 03:45:32", true},
+		{"* * * 8 *", "2013-09-03 03:45:32", false}, // month
+		{"* * * 9 *", "2013-09-03 03:45:32", true},
+		{"* * * * 5", "2018-03-01 03:45:32", false}, // day of week
+		{"* * * * 4", "2018-03-01 03:45:32", true},
+
+		// s m h dom mon dow year
+		{"0 * * * * * *", "2018-03-01 03:45:32", false}, // seconds
+		{"32 * * * * * *", "2018-03-01 03:45:32", true},
+		{"* * * * * * 2013", "2018-03-01 03:45:32", false}, // years
+		{"* * * * * * 2018", "2018-03-01 03:45:32", true},
+
+		{"32 */15 1/2 1 3 4 2018", "2018-03-01 03:45:32", true},
+	}
+
+	for i, c := range cases {
+		expression, _ := cronexpr.Parse(c.cronLine)
+		refTime, _ := time.Parse("2006-01-02 15:04:05", c.refTime)
+		matches := expression.Matches(refTime)
+		if matches != c.shouldMatch {
+			t.Errorf("Case %d: Parse(%q).Matches(T{%q}) returned '%t', expected '%t'", i+1, c.cronLine, c.refTime, matches, c.shouldMatch)
+		}
+	}
+}
+
+
 /******************************************************************************/
 
 var benchmarkExpressions = []string{

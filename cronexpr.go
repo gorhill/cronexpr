@@ -81,7 +81,7 @@ func Parse(cronLine string) (*Expression, error) {
 		fieldCount = 7
 	}
 
-	var expr = Expression{}
+	var expr = Expression{expression:cronLine}
 	var field = 0
 	var err error
 
@@ -263,4 +263,28 @@ func (expr *Expression) NextN(fromTime time.Time, n uint) []time.Time {
 		}
 	}
 	return nextTimes
+}
+
+func (expr *Expression) Matches(refTime time.Time) bool {
+	testSecondsAndYears := expr.testSeconds()
+	return (!testSecondsAndYears || containsVal(expr.secondList, refTime.Second())) &&
+		containsVal(expr.minuteList, refTime.Minute()) &&
+		containsVal(expr.hourList, refTime.Hour()) &&
+		expr.daysOfMonth[refTime.Day()] &&
+		containsVal(expr.monthList, int(refTime.Month())) &&
+		expr.daysOfWeek[int(refTime.Weekday())] &&
+		(!testSecondsAndYears || containsVal(expr.yearList, refTime.Year()))
+}
+
+func containsVal(sl []int, v int) bool {
+	for _, i := range sl {
+		if i == v {
+			return true
+		}
+	}
+	return false
+}
+
+func (expr *Expression) testSeconds() bool {
+	return len(fieldFinder.FindAllStringIndex(expr.expression, -1)) > 6
 }

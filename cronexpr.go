@@ -44,6 +44,10 @@ type Expression struct {
 	yearList               []int
 }
 
+func (expr Expression) String() string {
+	return fmt.Sprintf("(%s)", expr.expression)
+}
+
 /******************************************************************************/
 
 // MustParse returns a new Expression pointer. It expects a well-formed cron
@@ -85,6 +89,7 @@ func Parse(cronLine string) (*Expression, error) {
 	var field = 0
 	var err error
 
+	expr.expression = cronLine
 	// second field (optional)
 	if fieldCount == 7 {
 		err = expr.secondFieldHandler(cron[indices[field][0]:indices[field][1]])
@@ -142,6 +147,20 @@ func Parse(cronLine string) (*Expression, error) {
 	}
 
 	return &expr, nil
+}
+
+func (expr *Expression) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var cronLine string
+	if err := unmarshal(&cronLine); err != nil {
+		return err
+	}
+	var err error
+	expression, err := Parse(cronLine)
+	if err != nil {
+		return err
+	}
+	*expr = *expression
+	return nil
 }
 
 /******************************************************************************/

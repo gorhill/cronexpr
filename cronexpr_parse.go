@@ -212,7 +212,7 @@ var cronNormalizer = strings.NewReplacer(
 
 func (expr *Expression) secondFieldHandler(s string) error {
 	var err error
-	expr.secondList, err = genericFieldHandler(s, secondDescriptor)
+	expr.SecondList, err = genericFieldHandler(s, secondDescriptor)
 	return err
 }
 
@@ -220,7 +220,7 @@ func (expr *Expression) secondFieldHandler(s string) error {
 
 func (expr *Expression) minuteFieldHandler(s string) error {
 	var err error
-	expr.minuteList, err = genericFieldHandler(s, minuteDescriptor)
+	expr.MinuteList, err = genericFieldHandler(s, minuteDescriptor)
 	return err
 }
 
@@ -228,7 +228,7 @@ func (expr *Expression) minuteFieldHandler(s string) error {
 
 func (expr *Expression) hourFieldHandler(s string) error {
 	var err error
-	expr.hourList, err = genericFieldHandler(s, hourDescriptor)
+	expr.HourList, err = genericFieldHandler(s, hourDescriptor)
 	return err
 }
 
@@ -236,7 +236,7 @@ func (expr *Expression) hourFieldHandler(s string) error {
 
 func (expr *Expression) monthFieldHandler(s string) error {
 	var err error
-	expr.monthList, err = genericFieldHandler(s, monthDescriptor)
+	expr.MonthList, err = genericFieldHandler(s, monthDescriptor)
 	return err
 }
 
@@ -244,7 +244,7 @@ func (expr *Expression) monthFieldHandler(s string) error {
 
 func (expr *Expression) yearFieldHandler(s string) error {
 	var err error
-	expr.yearList, err = genericFieldHandler(s, yearDescriptor)
+	expr.YearList, err = genericFieldHandler(s, yearDescriptor)
 	return err
 }
 
@@ -288,10 +288,10 @@ func genericFieldHandler(s string, desc fieldDescriptor) ([]int, error) {
 }
 
 func (expr *Expression) dowFieldHandler(s string) error {
-	expr.daysOfWeekRestricted = true
-	expr.daysOfWeek = make(map[int]bool)
-	expr.lastWeekDaysOfWeek = make(map[int]bool)
-	expr.specificWeekDaysOfWeek = make(map[int]bool)
+	expr.DaysOfWeekRestricted = true
+	expr.DaysOfWeek = make(map[int]bool)
+	expr.LastWeekDaysOfWeek = make(map[int]bool)
+	expr.SpecificWeekDaysOfWeek = make(map[int]bool)
 
 	directives, err := genericFieldParse(s, dowDescriptor)
 	if err != nil {
@@ -306,34 +306,34 @@ func (expr *Expression) dowFieldHandler(s string) error {
 			// `5L`
 			pairs := makeLayoutRegexp(layoutDowOfLastWeek, dowDescriptor.valuePattern).FindStringSubmatchIndex(snormal)
 			if len(pairs) > 0 {
-				populateOne(expr.lastWeekDaysOfWeek, dowDescriptor.atoi(snormal[pairs[2]:pairs[3]]))
+				populateOne(expr.LastWeekDaysOfWeek, dowDescriptor.atoi(snormal[pairs[2]:pairs[3]]))
 			} else {
 				// `5#3`
 				pairs := makeLayoutRegexp(layoutDowOfSpecificWeek, dowDescriptor.valuePattern).FindStringSubmatchIndex(snormal)
 				if len(pairs) > 0 {
-					populateOne(expr.specificWeekDaysOfWeek, (dowDescriptor.atoi(snormal[pairs[4]:pairs[5]])-1)*7+(dowDescriptor.atoi(snormal[pairs[2]:pairs[3]])%7))
+					populateOne(expr.SpecificWeekDaysOfWeek, (dowDescriptor.atoi(snormal[pairs[4]:pairs[5]])-1)*7+(dowDescriptor.atoi(snormal[pairs[2]:pairs[3]])%7))
 				} else {
 					return fmt.Errorf("syntax error in day-of-week field: '%s'", sdirective)
 				}
 			}
 		case one:
-			populateOne(expr.daysOfWeek, directive.first)
+			populateOne(expr.DaysOfWeek, directive.first)
 		case span:
-			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
+			populateMany(expr.DaysOfWeek, directive.first, directive.last, directive.step)
 		case all:
-			populateMany(expr.daysOfWeek, directive.first, directive.last, directive.step)
-			expr.daysOfWeekRestricted = false
+			populateMany(expr.DaysOfWeek, directive.first, directive.last, directive.step)
+			expr.DaysOfWeekRestricted = false
 		}
 	}
 	return nil
 }
 
 func (expr *Expression) domFieldHandler(s string) error {
-	expr.daysOfMonthRestricted = true
-	expr.lastDayOfMonth = false
-	expr.lastWorkdayOfMonth = false
-	expr.daysOfMonth = make(map[int]bool)     // days of month map
-	expr.workdaysOfMonth = make(map[int]bool) // work days of month map
+	expr.DaysOfMonthRestricted = true
+	expr.LastDayOfMonth = false
+	expr.LastWorkdayOfMonth = false
+	expr.DaysOfMonth = make(map[int]bool)     // days of month map
+	expr.WorkdaysOfMonth = make(map[int]bool) // work days of month map
 
 	directives, err := genericFieldParse(s, domDescriptor)
 	if err != nil {
@@ -347,28 +347,28 @@ func (expr *Expression) domFieldHandler(s string) error {
 			snormal := strings.ToLower(sdirective)
 			// `L`
 			if makeLayoutRegexp(layoutLastDom, domDescriptor.valuePattern).MatchString(snormal) {
-				expr.lastDayOfMonth = true
+				expr.LastDayOfMonth = true
 			} else {
 				// `LW`
 				if makeLayoutRegexp(layoutLastWorkdom, domDescriptor.valuePattern).MatchString(snormal) {
-					expr.lastWorkdayOfMonth = true
+					expr.LastWorkdayOfMonth = true
 				} else {
 					// `15W`
 					pairs := makeLayoutRegexp(layoutWorkdom, domDescriptor.valuePattern).FindStringSubmatchIndex(snormal)
 					if len(pairs) > 0 {
-						populateOne(expr.workdaysOfMonth, domDescriptor.atoi(snormal[pairs[2]:pairs[3]]))
+						populateOne(expr.WorkdaysOfMonth, domDescriptor.atoi(snormal[pairs[2]:pairs[3]]))
 					} else {
 						return fmt.Errorf("syntax error in day-of-month field: '%s'", sdirective)
 					}
 				}
 			}
 		case one:
-			populateOne(expr.daysOfMonth, directive.first)
+			populateOne(expr.DaysOfMonth, directive.first)
 		case span:
-			populateMany(expr.daysOfMonth, directive.first, directive.last, directive.step)
+			populateMany(expr.DaysOfMonth, directive.first, directive.last, directive.step)
 		case all:
-			populateMany(expr.daysOfMonth, directive.first, directive.last, directive.step)
-			expr.daysOfMonthRestricted = false
+			populateMany(expr.DaysOfMonth, directive.first, directive.last, directive.step)
+			expr.DaysOfMonthRestricted = false
 		}
 	}
 	return nil

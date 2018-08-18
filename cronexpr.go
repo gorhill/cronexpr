@@ -26,22 +26,22 @@ import (
 // A Expression represents a specific cron time expression as defined at
 // <https://github.com/gorhill/cronexpr#implementation>
 type Expression struct {
-	expression             string
-	secondList             []int
-	minuteList             []int
-	hourList               []int
-	daysOfMonth            map[int]bool
-	workdaysOfMonth        map[int]bool
-	lastDayOfMonth         bool
-	lastWorkdayOfMonth     bool
-	daysOfMonthRestricted  bool
-	actualDaysOfMonthList  []int
-	monthList              []int
-	daysOfWeek             map[int]bool
-	specificWeekDaysOfWeek map[int]bool
-	lastWeekDaysOfWeek     map[int]bool
-	daysOfWeekRestricted   bool
-	yearList               []int
+	Expression             string
+	SecondList             []int
+	MinuteList             []int
+	HourList               []int
+	DaysOfMonth            map[int]bool
+	WorkdaysOfMonth        map[int]bool
+	LastDayOfMonth         bool
+	LastWorkdayOfMonth     bool
+	DaysOfMonthRestricted  bool
+	ActualDaysOfMonthList  []int
+	MonthList              []int
+	DaysOfWeek             map[int]bool
+	SpecificWeekDaysOfWeek map[int]bool
+	LastWeekDaysOfWeek     map[int]bool
+	DaysOfWeekRestricted   bool
+	YearList               []int
 }
 
 /******************************************************************************/
@@ -93,7 +93,7 @@ func Parse(cronLine string) (*Expression, error) {
 		}
 		field += 1
 	} else {
-		expr.secondList = []int{0}
+		expr.SecondList = []int{0}
 	}
 
 	// minute field
@@ -138,7 +138,7 @@ func Parse(cronLine string) (*Expression, error) {
 			return nil, err
 		}
 	} else {
-		expr.yearList = yearDescriptor.defaultList
+		expr.YearList = yearDescriptor.defaultList
 	}
 
 	return &expr, nil
@@ -172,59 +172,59 @@ func (expr *Expression) Next(fromTime time.Time) time.Time {
 
 	// year
 	v := fromTime.Year()
-	i := sort.SearchInts(expr.yearList, v)
-	if i == len(expr.yearList) {
+	i := sort.SearchInts(expr.YearList, v)
+	if i == len(expr.YearList) {
 		return time.Time{}
 	}
-	if v != expr.yearList[i] {
+	if v != expr.YearList[i] {
 		return expr.nextYear(fromTime)
 	}
 	// month
 	v = int(fromTime.Month())
-	i = sort.SearchInts(expr.monthList, v)
-	if i == len(expr.monthList) {
+	i = sort.SearchInts(expr.MonthList, v)
+	if i == len(expr.MonthList) {
 		return expr.nextYear(fromTime)
 	}
-	if v != expr.monthList[i] {
+	if v != expr.MonthList[i] {
 		return expr.nextMonth(fromTime)
 	}
 
-	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(fromTime.Year(), int(fromTime.Month()))
-	if len(expr.actualDaysOfMonthList) == 0 {
+	expr.ActualDaysOfMonthList = expr.calculateActualDaysOfMonth(fromTime.Year(), int(fromTime.Month()))
+	if len(expr.ActualDaysOfMonthList) == 0 {
 		return expr.nextMonth(fromTime)
 	}
 
 	// day of month
 	v = fromTime.Day()
-	i = sort.SearchInts(expr.actualDaysOfMonthList, v)
-	if i == len(expr.actualDaysOfMonthList) {
+	i = sort.SearchInts(expr.ActualDaysOfMonthList, v)
+	if i == len(expr.ActualDaysOfMonthList) {
 		return expr.nextMonth(fromTime)
 	}
-	if v != expr.actualDaysOfMonthList[i] {
+	if v != expr.ActualDaysOfMonthList[i] {
 		return expr.nextDayOfMonth(fromTime)
 	}
 	// hour
 	v = fromTime.Hour()
-	i = sort.SearchInts(expr.hourList, v)
-	if i == len(expr.hourList) {
+	i = sort.SearchInts(expr.HourList, v)
+	if i == len(expr.HourList) {
 		return expr.nextDayOfMonth(fromTime)
 	}
-	if v != expr.hourList[i] {
+	if v != expr.HourList[i] {
 		return expr.nextHour(fromTime)
 	}
 	// minute
 	v = fromTime.Minute()
-	i = sort.SearchInts(expr.minuteList, v)
-	if i == len(expr.minuteList) {
+	i = sort.SearchInts(expr.MinuteList, v)
+	if i == len(expr.MinuteList) {
 		return expr.nextHour(fromTime)
 	}
-	if v != expr.minuteList[i] {
+	if v != expr.MinuteList[i] {
 		return expr.nextMinute(fromTime)
 	}
 	// second
 	v = fromTime.Second()
-	i = sort.SearchInts(expr.secondList, v)
-	if i == len(expr.secondList) {
+	i = sort.SearchInts(expr.SecondList, v)
+	if i == len(expr.SecondList) {
 		return expr.nextMinute(fromTime)
 	}
 

@@ -36,30 +36,30 @@ var dowNormalizedOffsets = [][]int{
 func (expr *Expression) nextYear(t time.Time) time.Time {
 	// Find index at which item in list is greater or equal to
 	// candidate year
-	i := sort.SearchInts(expr.yearList, t.Year()+1)
-	if i == len(expr.yearList) {
+	i := sort.SearchInts(expr.YearList, t.Year()+1)
+	if i == len(expr.YearList) {
 		return time.Time{}
 	}
 	// Year changed, need to recalculate actual days of month
-	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(expr.yearList[i], expr.monthList[0])
-	if len(expr.actualDaysOfMonthList) == 0 {
+	expr.ActualDaysOfMonthList = expr.calculateActualDaysOfMonth(expr.YearList[i], expr.MonthList[0])
+	if len(expr.ActualDaysOfMonthList) == 0 {
 		return expr.nextMonth(time.Date(
-			expr.yearList[i],
-			time.Month(expr.monthList[0]),
+			expr.YearList[i],
+			time.Month(expr.MonthList[0]),
 			1,
-			expr.hourList[0],
-			expr.minuteList[0],
-			expr.secondList[0],
+			expr.HourList[0],
+			expr.MinuteList[0],
+			expr.SecondList[0],
 			0,
 			t.Location()))
 	}
 	return time.Date(
-		expr.yearList[i],
-		time.Month(expr.monthList[0]),
-		expr.actualDaysOfMonthList[0],
-		expr.hourList[0],
-		expr.minuteList[0],
-		expr.secondList[0],
+		expr.YearList[i],
+		time.Month(expr.MonthList[0]),
+		expr.ActualDaysOfMonthList[0],
+		expr.HourList[0],
+		expr.MinuteList[0],
+		expr.SecondList[0],
 		0,
 		t.Location())
 }
@@ -69,31 +69,31 @@ func (expr *Expression) nextYear(t time.Time) time.Time {
 func (expr *Expression) nextMonth(t time.Time) time.Time {
 	// Find index at which item in list is greater or equal to
 	// candidate month
-	i := sort.SearchInts(expr.monthList, int(t.Month())+1)
-	if i == len(expr.monthList) {
+	i := sort.SearchInts(expr.MonthList, int(t.Month())+1)
+	if i == len(expr.MonthList) {
 		return expr.nextYear(t)
 	}
 	// Month changed, need to recalculate actual days of month
-	expr.actualDaysOfMonthList = expr.calculateActualDaysOfMonth(t.Year(), expr.monthList[i])
-	if len(expr.actualDaysOfMonthList) == 0 {
+	expr.ActualDaysOfMonthList = expr.calculateActualDaysOfMonth(t.Year(), expr.MonthList[i])
+	if len(expr.ActualDaysOfMonthList) == 0 {
 		return expr.nextMonth(time.Date(
 			t.Year(),
-			time.Month(expr.monthList[i]),
+			time.Month(expr.MonthList[i]),
 			1,
-			expr.hourList[0],
-			expr.minuteList[0],
-			expr.secondList[0],
+			expr.HourList[0],
+			expr.MinuteList[0],
+			expr.SecondList[0],
 			0,
 			t.Location()))
 	}
 
 	return time.Date(
 		t.Year(),
-		time.Month(expr.monthList[i]),
-		expr.actualDaysOfMonthList[0],
-		expr.hourList[0],
-		expr.minuteList[0],
-		expr.secondList[0],
+		time.Month(expr.MonthList[i]),
+		expr.ActualDaysOfMonthList[0],
+		expr.HourList[0],
+		expr.MinuteList[0],
+		expr.SecondList[0],
 		0,
 		t.Location())
 }
@@ -103,18 +103,18 @@ func (expr *Expression) nextMonth(t time.Time) time.Time {
 func (expr *Expression) nextDayOfMonth(t time.Time) time.Time {
 	// Find index at which item in list is greater or equal to
 	// candidate day of month
-	i := sort.SearchInts(expr.actualDaysOfMonthList, t.Day()+1)
-	if i == len(expr.actualDaysOfMonthList) {
+	i := sort.SearchInts(expr.ActualDaysOfMonthList, t.Day()+1)
+	if i == len(expr.ActualDaysOfMonthList) {
 		return expr.nextMonth(t)
 	}
 
 	return time.Date(
 		t.Year(),
 		t.Month(),
-		expr.actualDaysOfMonthList[i],
-		expr.hourList[0],
-		expr.minuteList[0],
-		expr.secondList[0],
+		expr.ActualDaysOfMonthList[i],
+		expr.HourList[0],
+		expr.MinuteList[0],
+		expr.SecondList[0],
 		0,
 		t.Location())
 }
@@ -124,8 +124,8 @@ func (expr *Expression) nextDayOfMonth(t time.Time) time.Time {
 func (expr *Expression) nextHour(t time.Time) time.Time {
 	// Find index at which item in list is greater or equal to
 	// candidate hour
-	i := sort.SearchInts(expr.hourList, t.Hour()+1)
-	if i == len(expr.hourList) {
+	i := sort.SearchInts(expr.HourList, t.Hour()+1)
+	if i == len(expr.HourList) {
 		return expr.nextDayOfMonth(t)
 	}
 
@@ -133,9 +133,9 @@ func (expr *Expression) nextHour(t time.Time) time.Time {
 		t.Year(),
 		t.Month(),
 		t.Day(),
-		expr.hourList[i],
-		expr.minuteList[0],
-		expr.secondList[0],
+		expr.HourList[i],
+		expr.MinuteList[0],
+		expr.SecondList[0],
 		0,
 		t.Location())
 }
@@ -145,8 +145,8 @@ func (expr *Expression) nextHour(t time.Time) time.Time {
 func (expr *Expression) nextMinute(t time.Time) time.Time {
 	// Find index at which item in list is greater or equal to
 	// candidate minute
-	i := sort.SearchInts(expr.minuteList, t.Minute()+1)
-	if i == len(expr.minuteList) {
+	i := sort.SearchInts(expr.MinuteList, t.Minute()+1)
+	if i == len(expr.MinuteList) {
 		return expr.nextHour(t)
 	}
 
@@ -155,8 +155,8 @@ func (expr *Expression) nextMinute(t time.Time) time.Time {
 		t.Month(),
 		t.Day(),
 		t.Hour(),
-		expr.minuteList[i],
-		expr.secondList[0],
+		expr.MinuteList[i],
+		expr.SecondList[0],
 		0,
 		t.Location())
 }
@@ -169,8 +169,8 @@ func (expr *Expression) nextSecond(t time.Time) time.Time {
 
 	// Find index at which item in list is greater or equal to
 	// candidate second
-	i := sort.SearchInts(expr.secondList, t.Second()+1)
-	if i == len(expr.secondList) {
+	i := sort.SearchInts(expr.SecondList, t.Second()+1)
+	if i == len(expr.SecondList) {
 		return expr.nextMinute(t)
 	}
 
@@ -180,7 +180,7 @@ func (expr *Expression) nextSecond(t time.Time) time.Time {
 		t.Day(),
 		t.Hour(),
 		t.Minute(),
-		expr.secondList[i],
+		expr.SecondList[i],
 		0,
 		t.Location())
 }
@@ -199,22 +199,22 @@ func (expr *Expression) calculateActualDaysOfMonth(year, month int) []int {
 	//  "either field matches the current time"
 
 	// If both fields are not restricted, all days of the month are a hit
-	if expr.daysOfMonthRestricted == false && expr.daysOfWeekRestricted == false {
+	if expr.DaysOfMonthRestricted == false && expr.DaysOfWeekRestricted == false {
 		return genericDefaultList[1 : lastDayOfMonth.Day()+1]
 	}
 
 	// day-of-month != `*`
-	if expr.daysOfMonthRestricted {
+	if expr.DaysOfMonthRestricted {
 		// Last day of month
-		if expr.lastDayOfMonth {
+		if expr.LastDayOfMonth {
 			actualDaysOfMonthMap[lastDayOfMonth.Day()] = true
 		}
 		// Last work day of month
-		if expr.lastWorkdayOfMonth {
+		if expr.LastWorkdayOfMonth {
 			actualDaysOfMonthMap[workdayOfMonth(lastDayOfMonth, lastDayOfMonth)] = true
 		}
 		// Days of month
-		for v := range expr.daysOfMonth {
+		for v := range expr.DaysOfMonth {
 			// Ignore days beyond end of month
 			if v <= lastDayOfMonth.Day() {
 				actualDaysOfMonthMap[v] = true
@@ -222,7 +222,7 @@ func (expr *Expression) calculateActualDaysOfMonth(year, month int) []int {
 		}
 		// Work days of month
 		// As per Wikipedia: month boundaries are not crossed.
-		for v := range expr.workdaysOfMonth {
+		for v := range expr.WorkdaysOfMonth {
 			// Ignore days beyond end of month
 			if v <= lastDayOfMonth.Day() {
 				actualDaysOfMonthMap[workdayOfMonth(firstDayOfMonth.AddDate(0, 0, v-1), lastDayOfMonth)] = true
@@ -231,13 +231,13 @@ func (expr *Expression) calculateActualDaysOfMonth(year, month int) []int {
 	}
 
 	// day-of-week != `*`
-	if expr.daysOfWeekRestricted {
+	if expr.DaysOfWeekRestricted {
 		// How far first sunday is from first day of month
 		offset := 7 - int(firstDayOfMonth.Weekday())
 		// days of week
 		//  offset : (7 - day_of_week_of_1st_day_of_month)
 		//  target : 1 + (7 * week_of_month) + (offset + day_of_week) % 7
-		for v := range expr.daysOfWeek {
+		for v := range expr.DaysOfWeek {
 			w := dowNormalizedOffsets[(offset+v)%7]
 			actualDaysOfMonthMap[w[0]] = true
 			actualDaysOfMonthMap[w[1]] = true
@@ -250,7 +250,7 @@ func (expr *Expression) calculateActualDaysOfMonth(year, month int) []int {
 		// days of week of specific week in the month
 		//  offset : (7 - day_of_week_of_1st_day_of_month)
 		//  target : 1 + (7 * week_of_month) + (offset + day_of_week) % 7
-		for v := range expr.specificWeekDaysOfWeek {
+		for v := range expr.SpecificWeekDaysOfWeek {
 			v = 1 + 7*(v/7) + (offset+v)%7
 			if v <= lastDayOfMonth.Day() {
 				actualDaysOfMonthMap[v] = true
@@ -259,7 +259,7 @@ func (expr *Expression) calculateActualDaysOfMonth(year, month int) []int {
 		// Last days of week of the month
 		lastWeekOrigin := firstDayOfMonth.AddDate(0, 1, -7)
 		offset = 7 - int(lastWeekOrigin.Weekday())
-		for v := range expr.lastWeekDaysOfWeek {
+		for v := range expr.LastWeekDaysOfWeek {
 			v = lastWeekOrigin.Day() + (offset+v)%7
 			if v <= lastDayOfMonth.Day() {
 				actualDaysOfMonthMap[v] = true

@@ -17,6 +17,8 @@ package cronexpr
 import (
 	"testing"
 	"time"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 /******************************************************************************/
@@ -231,6 +233,28 @@ func TestZero(t *testing.T) {
 	next = MustParse("* * * * * 2099").Next(time.Time{})
 	if next.IsZero() == false {
 		t.Error(`("* * * * * 2014").Next(time.Time{}).IsZero() returned 'true', expected 'false'`)
+	}
+}
+
+/******************************************************************************/
+
+type Config struct {
+	Expression Expression `yaml:"Expression"`
+}
+
+func TestUnmarshaler(t *testing.T) {
+	var config Config
+	err := yaml.Unmarshal([]byte(`Expression: "* * * * *"`), &config)
+	if err != nil {
+		t.Errorf("Unexpected error while unmarshaling")
+	}
+	if config.Expression.String() != "(* * * * *)" {
+		t.Errorf("Unexpected value when unmarshaled")
+	}
+
+	err = yaml.Unmarshal([]byte(`Expression: * * * * *`), &config)
+	if err == nil {
+		t.Errorf("Expected an error")
 	}
 }
 

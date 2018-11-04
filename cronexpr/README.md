@@ -8,7 +8,7 @@ It is based on the standalone Go library <https://github.com/gorhill/cronexpr>.
 ## Install
 
     go get github.com/gorhill/cronexpr
-    go install github.com/gorhill/cronexpr
+    go install github.com/gorhill/cronexpr/cronexpr
 
 ## Usage
 

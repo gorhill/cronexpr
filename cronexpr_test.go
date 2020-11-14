@@ -305,6 +305,35 @@ func TestInterval_Interval60Issue(t *testing.T) {
 	}
 }
 
+// Issue: https://github.com/aptible/supercronic/issues/63
+func TestRange_OutOfOrder(t *testing.T) {
+	_, err := Parse("45 4 *  *  6-7")
+	if err == nil {
+		t.Errorf("parsing with range 6-7 should return err")
+	}
+
+	_, err = Parse("45 4 *  *  6-5")
+	if err == nil {
+		t.Errorf("parsing with range 6-5 should return err")
+	}
+}
+
+/******************************************************************************/
+
+func TestTooManyFields(t *testing.T) {
+	cronLine := "* * * * * * * foobar"
+
+	_, err := ParseStrict(cronLine)
+	if err == nil {
+		t.Errorf("ParseStrict with too many fields should return err ")
+	}
+
+	_, err = Parse(cronLine)
+	if err != nil {
+		t.Errorf("Parse with too many fields should not return err ")
+	}
+}
+
 /******************************************************************************/
 
 var benchmarkExpressions = []string{
